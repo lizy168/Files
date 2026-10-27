@@ -17,7 +17,12 @@ namespace Files.App.ViewModels.Settings
 			SelectedDefaultLayoutModeIndex = (int)DefaultLayoutMode;
 
 			// Sorting options
-			SelectedDefaultSortingIndex = UserSettingsService.LayoutSettingsService.DefaultSortOption == SortOption.FileTag ? FileTagSortingIndex : (int)UserSettingsService.LayoutSettingsService.DefaultSortOption;
+			SelectedDefaultSortingIndex = UserSettingsService.LayoutSettingsService.DefaultSortOption switch
+			{
+				SortOption.FileTag => FileTagSortingIndex,
+				SortOption.Column => -1,
+				var option => (int)option,
+			};
 			SelectedDefaultSortPriorityIndex = UserSettingsService.LayoutSettingsService.DefaultSortDirectoriesAlongsideFiles ? 2 : UserSettingsService.LayoutSettingsService.DefaultSortFilesFirst ? 1 : 0;
 
 			// Grouping options
@@ -139,7 +144,7 @@ namespace Files.App.ViewModels.Settings
 			get => selectedDefaultSortingIndex;
 			set
 			{
-				if (SetProperty(ref selectedDefaultSortingIndex, value))
+				if (SetProperty(ref selectedDefaultSortingIndex, value) && value >= 0)
 				{
 					OnPropertyChanged(nameof(SelectedDefaultSortingIndex));
 

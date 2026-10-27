@@ -58,6 +58,22 @@ namespace Files.App.Helpers
 			}
 		}
 
+		public string DirectorySortColumnId
+			=> LayoutPreferencesItem.DirectorySortColumnId;
+
+		public void SetSortColumn(string columnId)
+		{
+			if (DirectorySortOption == SortOption.Column && DirectorySortColumnId == columnId)
+				return;
+
+			LayoutPreferencesItem.DirectorySortColumnId = columnId;
+			LayoutPreferencesItem.DirectorySortOption = SortOption.Column;
+			OnPropertyChanged(nameof(DirectorySortColumnId));
+			OnPropertyChanged(nameof(DirectorySortOption));
+			LayoutPreferencesUpdateRequired?.Invoke(this, new LayoutPreferenceEventArgs(LayoutPreferencesItem));
+			SortOptionPreferenceUpdated?.Invoke(this, SortOption.Column);
+		}
+
 		public GroupOption DirectoryGroupOption
 		{
 			get => LayoutPreferencesItem.DirectoryGroupOption;
@@ -246,7 +262,10 @@ namespace Files.App.Helpers
 			if (preferencesItem is null)
 				return;
 
-			DirectorySortOption = preferencesItem.DirectorySortOption;
+			if (preferencesItem.DirectorySortOption == SortOption.Column)
+				SetSortColumn(preferencesItem.DirectorySortColumnId);
+			else
+				DirectorySortOption = preferencesItem.DirectorySortOption;
 			DirectorySortDirection = preferencesItem.DirectorySortDirection;
 			DirectoryGroupOption = preferencesItem.DirectoryGroupOption;
 			DirectoryGroupByDateUnit = preferencesItem.DirectoryGroupByDateUnit;
@@ -405,6 +424,7 @@ namespace Files.App.Helpers
 					preferencesItem.DirectorySortOption != SortOption.SyncStatus)
 				{
 					UserSettingsService.LayoutSettingsService.DefaultSortOption = preferencesItem.DirectorySortOption;
+					UserSettingsService.LayoutSettingsService.DefaultSortColumnId = preferencesItem.DirectorySortColumnId;
 				}
 
 				if (preferencesItem.DirectoryGroupOption != GroupOption.OriginalFolder &&

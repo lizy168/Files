@@ -1216,7 +1216,7 @@ namespace Files.App.ViewModels
 			});
 		}
 
-		private Task OrderFilesAndFoldersAsync()
+		private async Task OrderFilesAndFoldersAsync()
 		{
 			void OrderEntries()
 			{
@@ -1224,15 +1224,45 @@ namespace Files.App.ViewModels
 					return;
 
 				filesAndFolders = new ConcurrentCollection<ListedItem>(SortingHelper.OrderFileList(filesAndFolders.ToList(), folderSettings.DirectorySortOption, folderSettings.DirectorySortDirection,
-					folderSettings.SortDirectoriesAlongsideFiles, folderSettings.SortFilesFirst));
+					folderSettings.SortDirectoriesAlongsideFiles, folderSettings.SortFilesFirst, folderSettings.DirectorySortColumnId));
 			}
 
+			if (folderSettings.DirectorySortOption == SortOption.Column)
+				await LoadColumnValuesAsync(folderSettings.DirectorySortColumnId);
+
 			if (dispatcherQueue.HasThreadAccess)
-				return Task.Run(OrderEntries);
+			{
+				await Task.Run(OrderEntries);
+				return;
+			}
 
 			OrderEntries();
+		}
 
-			return Task.CompletedTask;
+		private async Task LoadColumnValuesAsync(string columnId)
+		{
+			var items = filesAndFolders.ToList();
+			if (ColumnValueHelper.IsShellPropertyColumn(columnId))
+			{
+				string[] propertyNames = [columnId];
+				await Task.WhenAll(items
+					.Where(item => !string.IsNullOrEmpty(item.ItemPath) && item.ShellPropertyValues?.ContainsKey(columnId) is not true)
+					.Select(async item =>
+					{
+						var values = await ShellPropertyReader.ReadAsync(item.ItemPath!, propertyNames);
+						if (item.ShellPropertyValues is { } current)
+						{
+							foreach (var (id, value) in current)
+								values.TryAdd(id, value);
+						}
+
+						item.ShellPropertyValues = values;
+					}));
+			}
+			else if (ColumnValueHelper.IsGitColumn(columnId))
+			{
+				await Task.WhenAll(items.OfType<IGitItem>().Select(LoadGitPropertiesAsync));
+			}
 		}
 
 		private void OrderGroups(CancellationToken token = default)
@@ -1247,7 +1277,7 @@ namespace Files.App.ViewModels
 					return;
 
 				gp.Order(list => SortingHelper.OrderFileList(list, folderSettings.DirectorySortOption, folderSettings.DirectorySortDirection,
-					folderSettings.SortDirectoriesAlongsideFiles, folderSettings.SortFilesFirst));
+					folderSettings.SortDirectoriesAlongsideFiles, folderSettings.SortFilesFirst, folderSettings.DirectorySortColumnId));
 			}
 
 			if (FilesAndFolders.GroupedCollection is null || FilesAndFolders.GroupedCollection.IsSorted)
