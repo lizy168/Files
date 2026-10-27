@@ -114,6 +114,8 @@ namespace Files.App.Views.Layouts
 			InitializeComponent();
 			DataContext = this;
 			ColumnsViewModel.PropertyChanged += ColumnsViewModel_PropertyChanged;
+			foreach (var id in DetailsLayoutColumnIds.All)
+				ColumnsViewModel.GetColumn(id).PropertyChanged += ColumnItem_PropertyChanged;
 			HeaderGrid.ManipulationMode = ManipulationModes.TranslateX;
 			HeaderGrid.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(HeaderGrid_ReorderPointerPressed), true);
 			HeaderGrid.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler(HeaderGrid_ReorderPointerMoved), true);
@@ -1094,6 +1096,12 @@ namespace Files.App.Views.Layouts
 			};
 		}
 
+		private void ColumnItem_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+		{
+			if (e.PropertyName is nameof(DetailsLayoutColumnItem.LengthIncludingGridSplitter))
+				ColumnsViewModel.NotifyLayoutChanged();
+		}
+
 		private void ColumnsViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
 		{
 			if (e.PropertyName == nameof(ColumnsViewModel.OrderedColumns))
@@ -1206,7 +1214,7 @@ namespace Files.App.Views.Layouts
 			splitter.ManipulationCompleted += GridSplitter_ManipulationCompleted;
 			splitter.PreviewKeyUp += GridSplitter_PreviewKeyUp;
 
-			return new(new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto }, header, splitter);
+			return new(new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto }, header, splitter, ColumnsViewModel.NotifyLayoutChanged);
 		}
 
 		private string GetPropertyColumnDisplayName(string id)
@@ -1299,7 +1307,7 @@ namespace Files.App.Views.Layouts
 			}
 		}
 
-		private sealed class PropertyColumnHeader(ColumnDefinition column, ColumnDefinition divider, DataGridHeader header, Files.App.Controls.GridSplitter splitter)
+		private sealed class PropertyColumnHeader(ColumnDefinition column, ColumnDefinition divider, DataGridHeader header, Files.App.Controls.GridSplitter splitter, Action layoutChanged)
 		{
 			private DetailsLayoutColumnItem? _item;
 
@@ -1331,6 +1339,8 @@ namespace Files.App.Views.Layouts
 			{
 				if (e.PropertyName is nameof(DetailsLayoutColumnItem.Length) or nameof(DetailsLayoutColumnItem.MaxLength))
 					UpdateWidth();
+				else if (e.PropertyName is nameof(DetailsLayoutColumnItem.LengthIncludingGridSplitter))
+					layoutChanged();
 			}
 
 			private void UpdateWidth()

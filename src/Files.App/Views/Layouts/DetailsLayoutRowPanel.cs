@@ -3,7 +3,6 @@
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Data;
 using Windows.Foundation;
 
 namespace Files.App.Views.Layouts
@@ -14,7 +13,8 @@ namespace Files.App.Views.Layouts
 	public sealed partial class DetailsLayoutRowPanel : Panel
 	{
 		private readonly Dictionary<string, TextBlock> _propertyCells = [];
-		private UIElement[] _orderedChildren = [];
+		private double[] _childWidths = [];
+		private int[] _orderedIndices = [];
 		private int[] _orderKeys = [];
 
 		public static readonly DependencyProperty ColumnOrderProperty =
@@ -41,6 +41,19 @@ namespace Files.App.Views.Layouts
 		{
 			get => (Style?)GetValue(PropertyCellStyleProperty);
 			set => SetValue(PropertyCellStyleProperty, value);
+		}
+
+		public static readonly DependencyProperty LayoutVersionProperty =
+			DependencyProperty.Register(
+				nameof(LayoutVersion),
+				typeof(int),
+				typeof(DetailsLayoutRowPanel),
+				new PropertyMetadata(0, (d, _) => ((DetailsLayoutRowPanel)d).InvalidateMeasure()));
+
+		public int LayoutVersion
+		{
+			get => (int)GetValue(LayoutVersionProperty);
+			set => SetValue(LayoutVersionProperty, value);
 		}
 
 		public DetailsLayoutRowPanel()
@@ -80,13 +93,6 @@ namespace Files.App.Views.Layouts
 						_propertyCells[id] = cell;
 						Children.Add(cell);
 					}
-
-					cell.SetBinding(WidthProperty, new Binding
-					{
-						Source = columns.GetColumn(id),
-						Path = new PropertyPath(nameof(DetailsLayoutColumnItem.LengthIncludingGridSplitterPixels)),
-						Mode = BindingMode.OneWay,
-					});
 				}
 
 				RefreshPropertyCells();
@@ -97,13 +103,26 @@ namespace Files.App.Views.Layouts
 
 		protected override Size MeasureOverride(Size availableSize)
 		{
-			var childAvailableSize = new Size(double.PositiveInfinity, availableSize.Height);
-			double width = 0, height = 0;
+			var columns = (ColumnOrder as DetailsLayoutColumnOrder)?.Columns;
+			var children = Children;
+			var count = children.Count;
 
-			foreach (var child in Children)
+			if (_childWidths.Length < count)
 			{
-				child.Measure(childAvailableSize);
-				width += child.DesiredSize.Width;
+				_childWidths = new double[count];
+				_orderedIndices = new int[count];
+				_orderKeys = new int[count];
+			}
+
+			double width = 0, height = 0;
+			for (int i = 0; i < count; i++)
+			{
+				var child = children[i];
+				var columnWidth = GetColumnWidth(columns, DetailsLayoutColumnExtensions.GetId(child));
+
+				child.Measure(new Size(double.IsNaN(columnWidth) ? double.PositiveInfinity : columnWidth, availableSize.Height));
+				_childWidths[i] = double.IsNaN(columnWidth) ? child.DesiredSize.Width : columnWidth;
+				width += _childWidths[i];
 				height = Math.Max(height, child.DesiredSize.Height);
 			}
 
@@ -114,42 +133,43 @@ namespace Files.App.Views.Layouts
 		{
 			var order = ColumnOrder as DetailsLayoutColumnOrder ?? DetailsLayoutColumnOrder.Default;
 			var children = Children;
-			var count = children.Count;
-
-			if (_orderedChildren.Length < count)
-			{
-				_orderedChildren = new UIElement[count];
-				_orderKeys = new int[count];
-			}
+			var count = Math.Min(children.Count, _childWidths.Length);
 
 			for (int i = 0; i < count; i++)
 			{
-				var child = children[i];
-				var key = order.IndexOf(DetailsLayoutColumnExtensions.GetId(child));
+				var key = order.IndexOf(DetailsLayoutColumnExtensions.GetId(children[i]));
 
 				int j = i - 1;
 				while (j >= 0 && _orderKeys[j] > key)
 				{
 					_orderKeys[j + 1] = _orderKeys[j];
-					_orderedChildren[j + 1] = _orderedChildren[j];
+					_orderedIndices[j + 1] = _orderedIndices[j];
 					j--;
 				}
 
 				_orderKeys[j + 1] = key;
-				_orderedChildren[j + 1] = child;
+				_orderedIndices[j + 1] = i;
 			}
 
 			double x = 0;
 			for (int i = 0; i < count; i++)
 			{
-				var child = _orderedChildren[i];
-				var width = child.DesiredSize.Width;
+				var index = _orderedIndices[i];
+				var child = children[index];
+				var width = _childWidths[index];
 				child.Arrange(new Rect(x, 0, width, Math.Max(finalSize.Height, child.DesiredSize.Height)));
 				x += width;
-				_orderedChildren[i] = null!;
 			}
 
 			return finalSize;
+		}
+
+		private static double GetColumnWidth(ColumnsViewModel? columns, string? id)
+		{
+			if (columns is null || id is null || columns.FindColumn(id) is not { } column)
+				return double.NaN;
+
+			return id == DetailsLayoutColumnIds.Icon ? column.LengthPixels : column.LengthIncludingGridSplitterPixels;
 		}
 	}
 }

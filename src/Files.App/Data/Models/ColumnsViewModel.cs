@@ -25,6 +25,7 @@ namespace Files.App.Data.Models
 			nameof(DateCreatedColumn),
 			nameof(SizeColumn),
 			nameof(OrderedColumns),
+			nameof(LayoutVersion),
 		],
 		[])]
 	public sealed partial class ColumnsViewModel : ObservableObject
@@ -222,6 +223,23 @@ namespace Files.App.Data.Models
 
 		[RegistryIgnore, JsonIgnore]
 		public IReadOnlyList<string> PropertyColumnIds => _propertyColumnIds;
+
+		/// <summary>
+		/// Gets a value that changes whenever the width or visibility of a column changes.
+		/// </summary>
+		[RegistryIgnore, JsonIgnore]
+		public int LayoutVersion { get; private set; }
+
+		public void NotifyLayoutChanged()
+		{
+			LayoutVersion++;
+			OnPropertyChanged(nameof(LayoutVersion));
+		}
+
+		public DetailsLayoutColumnItem? FindColumn(string id)
+		{
+			return DetailsLayoutColumnIds.All.Contains(id) ? GetColumn(id) : _propertyColumns.GetValueOrDefault(id);
+		}
 
 		[RegistryIgnore, JsonIgnore]
 		public IEnumerable<string> AllColumnIds => DetailsLayoutColumnIds.All.Concat(_propertyColumnIds);
