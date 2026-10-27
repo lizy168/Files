@@ -26,7 +26,12 @@ namespace Files.App.ViewModels.Settings
 			SelectedDefaultSortPriorityIndex = UserSettingsService.LayoutSettingsService.DefaultSortDirectoriesAlongsideFiles ? 2 : UserSettingsService.LayoutSettingsService.DefaultSortFilesFirst ? 1 : 0;
 
 			// Grouping options
-			SelectedDefaultGroupingIndex = UserSettingsService.LayoutSettingsService.DefaultGroupOption == GroupOption.FileTag ? FileTagGroupingIndex : (int)UserSettingsService.LayoutSettingsService.DefaultGroupOption;
+			SelectedDefaultGroupingIndex = UserSettingsService.LayoutSettingsService.DefaultGroupOption switch
+			{
+				GroupOption.FileTag => FileTagGroupingIndex,
+				GroupOption.Column => -1,
+				var option => (int)option,
+			};
 			SelectedDefaultGroupByDateUnitIndex = (int)UserSettingsService.LayoutSettingsService.DefaultGroupByDateUnit;
 		}
 
@@ -206,7 +211,7 @@ namespace Files.App.ViewModels.Settings
 			get => selectedDefaultGroupingIndex;
 			set
 			{
-				if (SetProperty(ref selectedDefaultGroupingIndex, value))
+				if (SetProperty(ref selectedDefaultGroupingIndex, value) && value >= 0)
 				{
 					OnPropertyChanged(nameof(SelectedDefaultGroupingIndex));
 

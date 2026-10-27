@@ -1227,6 +1227,9 @@ namespace Files.App.ViewModels
 					folderSettings.SortDirectoriesAlongsideFiles, folderSettings.SortFilesFirst, folderSettings.DirectorySortColumnId));
 			}
 
+			if (folderSettings.DirectoryGroupOption == GroupOption.Column)
+				await LoadColumnValuesAsync(folderSettings.DirectoryGroupColumnId);
+
 			if (folderSettings.DirectorySortOption == SortOption.Column)
 				await LoadColumnValuesAsync(folderSettings.DirectorySortColumnId);
 
@@ -1321,6 +1324,9 @@ namespace Files.App.ViewModels
 			try
 			{
 				await bulkOperationSemaphore.WaitAsync(token);
+				if (folderSettings.DirectoryGroupOption == GroupOption.Column)
+					await LoadColumnValuesAsync(folderSettings.DirectoryGroupColumnId);
+
 				var isSemaphoreReleased = false;
 				try
 				{
@@ -1398,8 +1404,8 @@ namespace Files.App.ViewModels
 
 		public void UpdateGroupOptions()
 		{
-			FilesAndFolders.ItemGroupKeySelector = GroupingHelper.GetItemGroupKeySelector(folderSettings.DirectoryGroupOption, folderSettings.DirectoryGroupByDateUnit);
-			var groupInfoSelector = GroupingHelper.GetGroupInfoSelector(folderSettings.DirectoryGroupOption, folderSettings.DirectoryGroupByDateUnit);
+			FilesAndFolders.ItemGroupKeySelector = GroupingHelper.GetItemGroupKeySelector(folderSettings.DirectoryGroupOption, folderSettings.DirectoryGroupByDateUnit, folderSettings.DirectoryGroupColumnId);
+			var groupInfoSelector = GroupingHelper.GetGroupInfoSelector(folderSettings.DirectoryGroupOption, folderSettings.DirectoryGroupByDateUnit, folderSettings.DirectoryGroupColumnId);
 			FilesAndFolders.GetGroupHeaderInfo = groupInfoSelector.Item1;
 			FilesAndFolders.GetExtendedGroupHeaderInfo = groupInfoSelector.Item2;
 		}

@@ -46,6 +46,11 @@ namespace Files.App.Data.Contracts
 		GroupOption DefaultGroupOption { get; set; }
 
 		/// <summary>
+		/// Gets or sets the column used for grouping when the default grouping option is a column.
+		/// </summary>
+		string DefaultGroupColumnId { get; set; }
+
+		/// <summary>
 		/// Gets or sets a value indicating the default grouping direction.
 		/// </summary>
 		SortDirection DefaultDirectoryGroupDirection { get; set; }

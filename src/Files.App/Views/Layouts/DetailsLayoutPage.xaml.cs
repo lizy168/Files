@@ -1369,6 +1369,9 @@ namespace Files.App.Views.Layouts
 			MoveColumnLeftMenuFlyoutItem.Visibility = visibility;
 			MoveColumnRightMenuFlyoutItem.Visibility = visibility;
 			MoveColumnMenuFlyoutSeparator.Visibility = visibility;
+			GroupByColumnMenuFlyoutItem.Visibility = visibility;
+			if (_contextColumnId is { } groupColumnId && FolderSettings is { } groupSettings)
+				GroupByColumnMenuFlyoutItem.IsChecked = IsGroupedByColumn(groupSettings, groupColumnId);
 
 			if (_contextColumnId is { } id)
 			{
@@ -1580,6 +1583,44 @@ namespace Files.App.Views.Layouts
 		{
 			if (sender is ToggleMenuFlyoutItem { Tag: string name } item)
 				SetPropertyColumnVisibility(name, item.IsChecked);
+		}
+
+		private void GroupByColumn_Click(object sender, RoutedEventArgs e)
+		{
+			if (_contextColumnId is not { } id || FolderSettings is not { } folderSettings)
+				return;
+
+			if (IsGroupedByColumn(folderSettings, id))
+				folderSettings.DirectoryGroupOption = GroupOption.None;
+			else if (GetBuiltInGroupOption(id) is { } groupOption)
+				folderSettings.DirectoryGroupOption = groupOption;
+			else
+				folderSettings.SetGroupColumn(id);
+		}
+
+		private static bool IsGroupedByColumn(LayoutPreferencesManager folderSettings, string id)
+		{
+			return GetBuiltInGroupOption(id) is { } groupOption
+				? folderSettings.DirectoryGroupOption == groupOption
+				: folderSettings.DirectoryGroupOption == GroupOption.Column && folderSettings.DirectoryGroupColumnId == id;
+		}
+
+		private static GroupOption? GetBuiltInGroupOption(string id)
+		{
+			return id switch
+			{
+				DetailsLayoutColumnIds.Name => GroupOption.Name,
+				DetailsLayoutColumnIds.DateModified => GroupOption.DateModified,
+				DetailsLayoutColumnIds.DateCreated => GroupOption.DateCreated,
+				DetailsLayoutColumnIds.ItemType => GroupOption.FileType,
+				DetailsLayoutColumnIds.Size => GroupOption.Size,
+				DetailsLayoutColumnIds.Status => GroupOption.SyncStatus,
+				DetailsLayoutColumnIds.Tag => GroupOption.FileTag,
+				DetailsLayoutColumnIds.OriginalPath => GroupOption.OriginalFolder,
+				DetailsLayoutColumnIds.DateDeleted => GroupOption.DateDeleted,
+				DetailsLayoutColumnIds.Path => GroupOption.FolderPath,
+				_ => null,
+			};
 		}
 
 		private void MoveColumnLeft_Click(object sender, RoutedEventArgs e)
