@@ -16,6 +16,9 @@ namespace Files.App.ViewModels.Settings
 
 		public bool IsGroup { get; } = isGroup;
 
+		public bool IsColumn
+			=> !IsGroup;
+
 		public ObservableCollection<ColumnTreeItem> Children { get; } = [];
 
 		private bool _IsExpanded;
@@ -24,6 +27,9 @@ namespace Files.App.ViewModels.Settings
 			get => _IsExpanded;
 			set => SetProperty(ref _IsExpanded, value);
 		}
+
+		public override string ToString()
+			=> DisplayName;
 	}
 
 	/// <summary>
@@ -37,6 +43,18 @@ namespace Files.App.ViewModels.Settings
 		public bool IsPinned => DetailsLayoutColumnOrder.IsFixed(Id);
 
 		public bool IsMovable => !IsPinned;
+
+		public string MoveUpName
+			=> string.Format(Strings.MoveColumnUp.GetLocalizedResource(), DisplayName);
+
+		public string MoveDownName
+			=> string.Format(Strings.MoveColumnDown.GetLocalizedResource(), DisplayName);
+
+		public string RemoveName
+			=> string.Format(Strings.RemoveNamed.GetLocalizedResource(), DisplayName);
+
+		public override string ToString()
+			=> DisplayName;
 	}
 
 	/// <summary>
@@ -49,6 +67,11 @@ namespace Files.App.ViewModels.Settings
 		private readonly Func<string, string> _getDisplayName;
 
 		public ObservableCollection<ColumnTreeItem> AvailableColumnGroups { get; } = [];
+
+		/// <summary>
+		/// Gets the available columns as one list, each group followed by its columns.
+		/// </summary>
+		public ObservableCollection<ColumnTreeItem> AvailableColumnList { get; } = [];
 
 		public ObservableCollection<ColumnListItem> ShownColumns { get; } = [];
 
@@ -111,6 +134,19 @@ namespace Files.App.ViewModels.Settings
 		/// <summary>
 		/// Moves the pinned column back to the top after the user reordered the list.
 		/// </summary>
+		/// <summary>
+		/// Moves a column up or down, keeping the pinned column first.
+		/// </summary>
+		public void MoveColumn(ColumnListItem column, int offset)
+		{
+			var index = ShownColumns.IndexOf(column);
+			var newIndex = index + offset;
+			if (column.IsPinned || index < 0 || newIndex < 1 || newIndex >= ShownColumns.Count)
+				return;
+
+			ShownColumns.Move(index, newIndex);
+		}
+
 		public void KeepPinnedColumnFirst()
 		{
 			if (ShownColumns.FirstOrDefault(column => column.IsPinned) is { } pinnedColumn && ShownColumns.IndexOf(pinnedColumn) is > 0 and var index)
@@ -148,6 +184,7 @@ namespace Files.App.ViewModels.Settings
 				.OrderBy(group => group.Key);
 
 			AvailableColumnGroups.Clear();
+			AvailableColumnList.Clear();
 			foreach (var group in groups)
 			{
 				var groupItem = new ColumnTreeItem(group.Key.ToString(), GetGroupDisplayName(group.Key), true) { IsExpanded = query.Length > 0 || expandedGroups.Contains(group.Key.ToString()) };
@@ -155,6 +192,9 @@ namespace Files.App.ViewModels.Settings
 					groupItem.Children.Add(new(id, displayName, false));
 
 				AvailableColumnGroups.Add(groupItem);
+				AvailableColumnList.Add(groupItem);
+				foreach (var column in groupItem.Children)
+					AvailableColumnList.Add(column);
 			}
 		}
 
